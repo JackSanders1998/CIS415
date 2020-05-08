@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
             int result = sigwait(&signals, &signum);
             if (result == 0) {
                 printf("Signal received\n");
-                execvp("./iobound", 1);
+                execvp("./iobound", NULL);
             }
             printf("Child Process: %i sigwait could not execute\n", getpid());
             exit(EXIT_FAILURE);
