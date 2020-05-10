@@ -15,37 +15,40 @@ void signaler(pid_t *children, int siglabel) {
   }
 }
 
-int child_alive(pid_t process) {
+int child_alive(pid_t *process) {
     int status;
-    pid_t curr_child = waitpid(process, &status, WNOHANG);
-    if (status > 0)
-        return 1;
-    else
-        return 0;
+    int index;
+    pid_t curr_child;
+    for (int i = 0; i < 5; i++) {
+        //curr_child = ;
+        if (waitpid(process[i], &status, WNOHANG) == 0)
+            index++;
+    }
+    return index;
 }
 
 int main(int argc, char **argv) {
     pid_t processes[5];
     pid_t curproc;
+s
+    sigset_t signal_test;
+    sigemptyset(&signaler);
+    int check = sigaddset(&signaler, SIGUSR1);
 
-    sigset_t signals;
-    sigemptyset(&signals);
-    int check = sigaddset(&signals, SIGUSR1);
-
-    sigprocmask(SIG_BLOCK, &signals, NULL);
+    sigprocmask(SIG_BLOCK, &signaler, NULL);
 
         for (int i = 0; i < 5; i++) {
         processes[i] = fork();
         if (processes[i] == 0) {
             printf("Child Process: %i - Waiting for SIGUSR1...\n", getpid());
             int signum = SIGUSR1;
-            int result = sigwait(&signals, &signum);
+            int result = sigwait(&signal_test, &signum);
             if (result == 0) {
                 printf("Signal received\n");
                 execvp("./iobound", NULL);
             }
             printf("Child Process: %i sigwait could not execute\n", getpid());
-            exit(EXIT_FAILURE);
+            //exit(EXIT_FAILURE);
         }
         else {
             printf("Parent Process: %i - Waiting to SIGSUR1...\n", getpid());
@@ -55,14 +58,15 @@ int main(int argc, char **argv) {
     printf("Parent Process: %i entering control \n", getpid());
     sleep(3);
     signaler(processes, SIGUSR1);
+    signaler(processes, SIGSTOP);
     //pid_t curr_child, next_child;
     //int status_curr, status_next;
     //int alive
     //processes[5] = -1;
     int i = 0;
-    while (child_alive(processes[i]) && child_alive(processes[i+1])) {
-        kill(processes[i], SIGSTOP);
-        kill(processes[i+1], SIGCONT);
+    while (child_alive(processes) > 1) {
+        kill(processes[i%5], SIGSTOP);
+        kill(processes[(i+1)%5], SIGCONT);
             //curr_child = waitpid(processes[i], &status_curr, WNOHANG);
             //next_child = waitpid(processes[i+1], &status_next, WNOHANG);
             //printf("curr_child: %d\n", curr_child);
@@ -95,8 +99,8 @@ int main(int argc, char **argv) {
             }
             */
         i++;
+        sleep(1);
     }
-    sleep(1);
     return 0;
 }
 
