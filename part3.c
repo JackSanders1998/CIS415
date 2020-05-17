@@ -24,9 +24,11 @@ int child_alive(pid_t *process) {
     pid_t curr_child;
 
     for (int i = 0; i < numprograms; i++) {
-        curr_child = waitpid(process[i], &status, WNOHANG);
-        if (WIFEXITED(status) == 0)
+        curr_child = waitpid(process[i], &status, WNOHANG | WUNTRACED | WCONTINUED);
+        if (!WIFEXITED(status)) {
             index++;
+            process[i] = -1;
+          }
     }
     return index;
 }
@@ -61,7 +63,7 @@ int main(int argc, char *argv[]) {
         lines[numprograms] = strdup(line);
         numprograms++;
     }
-    output = freopen("part3_out.txt", "w", stdout);
+    //output = freopen("part3_out.txt", "w", stdout);
   }
 
   //---------------------------------------------//
@@ -87,7 +89,7 @@ int main(int argc, char *argv[]) {
       token = strtok_r(NULL, " ", &saveptr);
       j++;
     }
-    
+
     pid[i] = fork();
     if (pid[i] == 0) {
       printf("Child Process: %i - Waiting for SIGUSR1...\n", getpid());
@@ -107,7 +109,7 @@ int main(int argc, char *argv[]) {
   signaler(pid, SIGUSR1);
 
   int j = 0;
-  printf("%d\n", child_alive(pid))
+  printf("%d\n", child_alive(pid));
   while (child_alive(pid) > 1) {
     kill(pid[j % numprograms], SIGSTOP);
     kill(pid[(j+1) % numprograms], SIGCONT);
@@ -118,4 +120,3 @@ int main(int argc, char *argv[]) {
   fclose(output);
   return 1;
 }
-

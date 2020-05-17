@@ -6,10 +6,18 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <signal.h>
+
+
+void signaler(pid_t *processes, int label, int numprograms) {
+    for (int i = 0; i < numprograms; i++) {
+    kill(processes[i], label);
+    //kill(processes[i], SIGSTOP);
+    }
+}
 
 int main(int argc, char *argv[]) {
 
-    // usage check
     if (argc != 2) {
         fprintf(stderr, "Error! Usage: %s <file>\n", argv[0]);
         exit(-1);
@@ -20,14 +28,12 @@ int main(int argc, char *argv[]) {
     char* programs[50];
     char line[50];
 
-    // error check
     input = freopen(argv[1], "r", stdin);
     if (input == NULL) {
         fprintf(stderr, "unable to open input file\n");
         exit(-1);
     }
 
-    // copy each line of file into array & count number of lines
     else {
         while (fgets(line, sizeof line, input) != NULL) {
 
@@ -42,12 +48,15 @@ int main(int argc, char *argv[]) {
   //---------------------------------------------//
 
     pid_t pid[numprograms];
+    sigset_t signal;
+    sigemptyset(&signal);
+    sigaddset(&signal, SIGUSR1);
+    sigprocmask(SIG_BLOCK, &signal, NULL);
+
     char* arguments[50];
     char* saveptr;
     int j;
 
-
-    // loop throuch each line in the file
     for (int i = 0; i < numprograms; i++) {
         char* token = strtok_r(programs[i], " ", &saveptr);
         j = 0;
@@ -58,22 +67,47 @@ int main(int argc, char *argv[]) {
         }
         arguments[j] = NULL;
 
+
         pid[i] = fork();
+        printf("forking %d\n", pid[i]);
         if (pid[i] < 0) {
+          fprintf(stderr, "fork error\n");
           exit(-1);
         }
+
         if (pid[i] == 0) {
+          printf(" %s %s \n", arguments[0], arguments[1]);
+          int sig_flag = SIGUSR1;
+          int exec_test = sigwait(&signal, &sig_flag);
+          if (exec_test == 0) {
             execvp(arguments[0], arguments);
-            fclose(input);
-            exit(-1);
+          }
+          free(*arguments);
+
+          fclose(input);
+          exit(-1);
         }
+
+        memset(arguments, 0, sizeof(arguments));
+        free(*arguments);
     }
 
+
+    sleep(1);
+    signaler(pid, SIGUSR1, numprograms);
+    signaler(pid, SIGSTOP, numprograms);
+    signaler(pid, SIGCONT, numprograms);
+
     for (int i = 0; i < numprograms; i++) {
-        wait(&pid[i]);
+      wait(&pid[i]);
     }
+
+
+    /*for (int i = 0; i < numprograms; i++) {
+        wait(0);
+    }*/
 
     fclose(input);
     exit(0);
-    return 1;
+    //return 1;
 }

@@ -1,5 +1,3 @@
 ls -a -r -s
-sleep 1
-invalid name
 ./iobound -seconds 2
 ./cpubound -seconds 2

@@ -5,107 +5,105 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <unistd.h>
-#include <signal.h>
 #include <sys/wait.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <signal.h>
 
 
-
-void signaler(pid_t *children, int siglabel, int numprograms) {
-  for (int i = 0; i < numprograms; i++) {
-    kill(children[i], siglabel);
-  }
+void signaler(pid_t *pids, int label, int numprograms) {
+    for (int i = 0; i < numprograms; i++) {
+    kill(pids[i], label);
+    }
 }
 
 int main(int argc, char *argv[]) {
 
-  if (argc != 2) {
-    fprintf(stderr, "Error! Usage: %s <file>\n", argv[0]);
-    exit(EXIT_FAILURE);
-  }
-
-  setbuf(stdout, NULL);
-  FILE *input;
-  FILE *output;
-  int numprograms = 0;
-  char* lines[50];
-
-  input = freopen(argv[1], "r", stdin);
-
-  if (input == NULL) {
-    fprintf(stderr, "unable to open input file\n");
-    exit(EXIT_FAILURE);
-  }
-
-  else {
-    char line[50];
-    while (fgets(line, sizeof line, input) != NULL) {
-
-        if ((line)[strlen(line) - 1] == '\n') {
-          (line)[strlen(line) - 1] = '\0';
-        }
-        lines[numprograms] = strdup(line);
-        numprograms++;
+    // usage check
+    if (argc != 2) {
+        fprintf(stderr, "Error! Usage: %s <file>\n", argv[0]);
+        exit(-1);
     }
-    output = freopen("part2_out.txt", "w", stdout);
-  }
+
+    FILE *input;
+    int numprograms = 0;
+    char* programs[50];
+    char line[50];
+
+    // error check
+    input = freopen(argv[1], "r", stdin);
+    if (input == NULL) {
+        fprintf(stderr, "unable to open input file\n");
+        exit(-1);
+    }
+
+    // copy each line into an array & count number of lines
+    else {
+        while (fgets(line, sizeof line, input) != NULL) {
+
+            if ((line)[strlen(line) - 1] == '\n') {
+                (line)[strlen(line) - 1] = '\0';
+            }
+            programs[numprograms] = strdup(line);
+            numprograms++;
+        }
+      }
 
   //---------------------------------------------//
 
-  char* program;
-  char* arguments[50];
-  char* saveptr;
-  printf("here\n");
-  pid_t pid[50];
-  pid_t curr_pid;
-  sigset_t signals;
-  sigemptyset(&signals);
-  int check = sigaddset(&signals, SIGUSR1);
-  sigprocmask(SIG_BLOCK, &signals, NULL);
+    pid_t pid[numprograms];
 
-  for (int i = 0; i < numprograms; i++) {
+    sigset_t sig_set;
+    sigemptyset(&sig_set);
+    sigaddset(&sig_set, SIGUSR1);
+    sigprocmask(SIG_BLOCK, &sig_set, NULL);
 
-    char* token = strtok_r(lines[i], " ", &saveptr);
-    int j = 0;
+    char* arguments[50];
+    char* saveptr;
+    int j;
 
-    while (token) {
-      arguments[j] = strdup(token);
-      token = strtok_r(NULL, " ", &saveptr);
-      j++;
+    for (int i = 0; i < numprograms; i++) {
+        char* token = strtok_r(programs[i], " ", &saveptr);
+        j = 0;
+        while (token) {
+            arguments[j] = strdup(token);
+            token = strtok_r(NULL, " ", &saveptr);
+            j++;
+        }
+        arguments[j] = NULL;
+
+        pid[i] = fork();
+        if (pid[i] < 0) {
+          fprintf(stderr, "fork error\n");
+          exit(-1);
+        }
+
+        if (pid[i] == 0) {
+          int sig_flag = SIGUSR1;
+          int exec_test = sigwait(&sig_set, &sig_flag);
+          if (exec_test == 0) {
+            execvp(arguments[0], arguments);
+          }
+          free(*arguments);
+
+          fclose(input);
+          exit(-1);
+        }
+
+        memset(arguments, 0, sizeof(arguments));
+        free(*arguments);
     }
-    
-    pid[i] = fork();
-    if (pid[i] < 0) {
-    	fprintf(stderr, "fork error\n");
-    	exit(-1);
+
+
+    sleep(1);
+    signaler(pid, SIGUSR1, numprograms);
+    signaler(pid, SIGSTOP, numprograms);
+    signaler(pid, SIGCONT, numprograms);
+
+    for (int i = 0; i < numprograms; i++) {
+      wait(&pid[i]);
     }
-    else if (pid[i] == 0) {
-      int signum = SIGUSR1;
-      int result = sigwait(&signals, &signum);
-      if (result == 0) {
-        execvp(arguments[0], arguments);
-      }
-      
-       fclose(input);
-  		fclose(output);
-  		fprintf(stderr, "execvp");
-  		exit(-1);
-    }
-    memset(arguments, 0, sizeof(arguments));
-  }
 
-  sleep(1);
-  signaler(pid, SIGUSR1, numprograms);
-  signaler(pid, SIGSTOP, numprograms);
-  signaler(pid, SIGCONT, numprograms);
 
-  for (int i = 0; i < numprograms; i++) {
-    wait(0);
-  }
-
-  fclose(input);
-  fclose(output);
-  exit(0);
+    fclose(input);
+    exit(0);
+    return 1;
 }
