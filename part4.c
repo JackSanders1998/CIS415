@@ -7,6 +7,9 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 
 void signaler(pid_t *processes, int label, int numprograms) {
@@ -14,6 +17,26 @@ void signaler(pid_t *processes, int label, int numprograms) {
     kill(processes[i], label);
     //kill(processes[i], SIGSTOP);
     }
+}
+
+void top_func(int pid) {
+  //system("clear");
+  //system("clear");
+  char name[50];
+  sprintf(name, "/proc/%d/stat", pid);
+  printf("pid = %d\n", pid);
+  FILE *file = fopen(name, "r");
+
+  int unused;
+  char comm[1000];
+  char state;
+  int ppid;
+  fscanf(file, "%d %s %c %d", &unused, comm, &state, &ppid);
+  printf("command = %s\n", comm);
+  printf("state = %c\n", state);
+  printf("parent pid = %d\n", ppid);
+  fclose(file);
+
 }
 
 int main(int argc, char *argv[]) {
@@ -69,14 +92,12 @@ int main(int argc, char *argv[]) {
 
 
         pid[i] = fork();
-        printf("forking %d\n", pid[i]);
         if (pid[i] < 0) {
           fprintf(stderr, "fork error\n");
           exit(-1);
         }
 
         if (pid[i] == 0) {
-          printf(" %s %s \n", arguments[0], arguments[1]);
           int sig_flag = SIGUSR1;
           int exec_test = sigwait(&signal, &sig_flag);
           if (exec_test == 0) {
@@ -98,16 +119,14 @@ int main(int argc, char *argv[]) {
     signaler(pid, SIGSTOP, numprograms);
     signaler(pid, SIGCONT, numprograms);
 
+
     for (int i = 0; i < numprograms; i++) {
+      int pid_num = getpid();
+      top_func(pid_num);
       wait(&pid[i]);
     }
 
-
-    /*for (int i = 0; i < numprograms; i++) {
-        wait(0);
-    }*/
-
     fclose(input);
     exit(0);
-    //return 1;
+    return 1;
 }

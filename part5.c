@@ -18,16 +18,16 @@ void signaler(pid_t *pids, int label, int numprograms) {
 
 int child_alive(pid_t *processes, int numprograms) {
 	  int status;
-    int index;
+    int index = 0;
     pid_t curr_child;
 
     for (int i = 0; i < numprograms; i++) {
         curr_child = waitpid(processes[i], &status, WNOHANG | WUNTRACED | WCONTINUED);
         if (!WIFEXITED(status)) {
+            //printf("in here\n");
             index++;
           }
     }
-    printf("wtf\n");
     return index;
 }
 
@@ -98,20 +98,17 @@ int main(int argc, char *argv[]) {
           if (exec_test == 0) {
 
             int exec;
-            printf("before exec: %s %s \n", arguments[0], arguments[1]);
 
             exec = execvp(arguments[0], arguments);
-            printf("after exec: %s %s \n", arguments[0], arguments[1]);
+
             if (exec == -1) {
-              printf("fuck: %d\n", exec);
-              printf("pidshit %d\n", getppid());
               exit(-1);
             }
 
           }
-          //free(*arguments);
-          //fclose(input);
-          exit(0);
+          free(*arguments);
+          fclose(input);
+          exit(-1);
         }
 
         //memset(arguments, 0, sizeof(arguments));
@@ -130,11 +127,11 @@ int main(int argc, char *argv[]) {
     int status;
     int pid_index = 0;
     int children = numprograms;
-    //while (child_alive(pid, numprograms) > 1) {
-    while (children > 0) {
-      printf("called child alive");
+
+    while (child_alive(pid, numprograms) >  0) {
+
+    //while (children > 0) {
       if (pid[pid_index] != -1) {
-        //printf("in here");
         alarm(2);
         kill(pid[pid_index], SIGCONT);
         int sig_flag = SIGALRM;

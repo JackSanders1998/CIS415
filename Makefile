@@ -10,7 +10,7 @@ part2.out: part2.c
 	$(CC) $(CFLAGS) part2.c -o part2.out
 
 part3.out: part3.c
-	$(CC) $(CFLAGS) part1.c -o part1.out
+	$(CC) $(CFLAGS) part3.c -o part3.out
 
 part4.out: part4.c
 	$(CC) $(CFLAGS) part4.c -o part4.out
