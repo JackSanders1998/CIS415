@@ -77,10 +77,15 @@ int main(int argc, char *argv[]) {
         }
 
         if (pid[i] == 0) {
+          printf("child process: %d\n", getpid());
           int sig_flag = SIGUSR1;
           int exec_test = sigwait(&sig_set, &sig_flag);
           if (exec_test == 0) {
-            execvp(arguments[0], arguments);
+            int exec = execvp(arguments[0], arguments);
+            if (exec == -1) {
+              fprintf(stderr, "exec error");
+            exit(-1);
+            }
           }
           free(*arguments);
 
@@ -95,8 +100,11 @@ int main(int argc, char *argv[]) {
 
     sleep(1);
     signaler(pid, SIGUSR1, numprograms);
+    printf("Sending SIGUSR\n");
     signaler(pid, SIGSTOP, numprograms);
+    printf("Sending SIGSTOP\n");
     signaler(pid, SIGCONT, numprograms);
+    printf("Sending SIGCONT\n");
 
     for (int i = 0; i < numprograms; i++) {
       wait(&pid[i]);

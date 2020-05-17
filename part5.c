@@ -24,11 +24,30 @@ int child_alive(pid_t *processes, int numprograms) {
     for (int i = 0; i < numprograms; i++) {
         curr_child = waitpid(processes[i], &status, WNOHANG | WUNTRACED | WCONTINUED);
         if (!WIFEXITED(status)) {
-            //printf("in here\n");
             index++;
           }
     }
     return index;
+}
+
+void top_func(int pid) {
+  //system("clear");
+  //system("clear");
+  char name[50];
+  sprintf(name, "/proc/%d/stat", pid);
+  printf("pid = %d\n", pid);
+  FILE *file = fopen(name, "r");
+
+  int unused;
+  char comm[1000];
+  char state;
+  int ppid;
+  fscanf(file, "%d %s %c %d", &unused, comm, &state, &ppid);
+  printf("command = %s\n", comm);
+  printf("state = %c\n", state);
+  printf("parent pid = %d\n", ppid);
+  fclose(file);
+
 }
 
 int main(int argc, char *argv[]) {

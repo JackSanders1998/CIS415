@@ -24,7 +24,6 @@ int child_alive(pid_t *processes, int numprograms) {
     for (int i = 0; i < numprograms; i++) {
         curr_child = waitpid(processes[i], &status, WNOHANG | WUNTRACED | WCONTINUED);
         if (!WIFEXITED(status)) {
-            //printf("in here\n");
             index++;
           }
     }
@@ -93,15 +92,14 @@ int main(int argc, char *argv[]) {
         }
 
         if (pid[i] == 0) {
+          printf("child process: %d\n", getpid());
           int sig_flag = SIGUSR1;
           int exec_test = sigwait(&sig_set, &sig_flag);
           if (exec_test == 0) {
 
-            int exec;
-
-            exec = execvp(arguments[0], arguments);
-
+            int exec = execvp(arguments[0], arguments);
             if (exec == -1) {
+              fprintf(stderr, "exec error");
               exit(-1);
             }
 
@@ -111,7 +109,7 @@ int main(int argc, char *argv[]) {
           exit(-1);
         }
 
-        //memset(arguments, 0, sizeof(arguments));
+        memset(arguments, 0, sizeof(arguments));
         free(*arguments);
     }
 
@@ -126,13 +124,10 @@ int main(int argc, char *argv[]) {
     sigprocmask(SIG_BLOCK, &schedule, NULL);
     int status;
     int pid_index = 0;
-    int children = numprograms;
-
     while (child_alive(pid, numprograms) >  0) {
-
-    //while (children > 0) {
       if (pid[pid_index] != -1) {
         alarm(2);
+        printf("alarm sent\n");
         kill(pid[pid_index], SIGCONT);
         int sig_flag = SIGALRM;
         sigaddset(&schedule, SIGALRM);
@@ -142,14 +137,12 @@ int main(int argc, char *argv[]) {
         waitpid(pid[pid_index], &status, WNOHANG | WUNTRACED | WCONTINUED);
         if (!WIFEXITED(status)) {
           pid[pid_index] == -1;
-          //exit(0);
         }
       }
       if (pid_index == numprograms) {
         pid_index = 0;
       }
       pid_index++;
-      children = children - 1;
     }
     waitpid(pid[pid_index], &status, WNOHANG | WUNTRACED | WCONTINUED);
 

@@ -1,0 +1,58 @@
+==26487== Memcheck, a memory error detector
+==26487== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==26487== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==26487== Command: ./part3.out input.txt
+==26487== 
+total 344
+ 8 part5.c
+16 part5
+20 part4.out
+ 8 part4.c
+16 part4
+20 part3.out
+ 8 part3_new.c
+ 4 part3.c
+16 part3
+20 part2.out
+ 4 part2.c
+16 part2
+16 part1.out
+12 .part1.c.swp
+ 4 part1.c
+ 4 Makefile
+ 4 main.c
+ 4 logPart3.txt
+ 4 logPart2.txt
+ 4 logPart1.txt
+84 Lab 5 - Description.pdf
+ 4 iobound.c
+16 iobound
+ 4 input.txt
+ 4 .git
+ 4 cpubound.c
+12 cpubound
+ 4 ..
+ 4 .
+==26487== Conditional jump or move depends on uninitialised value(s)
+==26487==    at 0x108E8A: child_alive (part3.c:26)
+==26487==    by 0x109485: main (part3.c:127)
+==26487== 
+==26487== Syscall param kill(pid) contains uninitialised byte(s)
+==26487==    at 0x4E7B187: kill (syscall-template.S:78)
+==26487==    by 0x10941B: main (part3.c:136)
+==26487== 
+==26487== Conditional jump or move depends on uninitialised value(s)
+==26487==    at 0x109369: main (part3.c:128)
+==26487== 
+==26487== Syscall param kill(pid) contains uninitialised byte(s)
+==26487==    at 0x4E7B187: kill (syscall-template.S:78)
+==26487==    by 0x1093A3: main (part3.c:131)
+==26487== 
+I am iobound.c called by execv() Process: 26493 - Begining to write to file.
+Process: 26493 - Finished.
+I am cpubound.c called by execv() Process: 26494 - Begining calculation.
+Process: 26494 - Finished.
+==26487== Syscall param kill(pid) contains uninitialised byte(s)
+==26487==    at 0x4E7B187: kill (syscall-template.S:78)
+==26487==    by 0x1093F9: main (part3.c:135)
+==26487== 

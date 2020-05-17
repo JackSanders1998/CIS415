@@ -7,40 +7,56 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 
 
-void signaler(pid_t *processes, int label, int numprograms) {
+void signaler(pid_t *pids, int label, int numprograms) {
     for (int i = 0; i < numprograms; i++) {
-    kill(processes[i], label);
-    //kill(processes[i], SIGSTOP);
+    kill(pids[i], label);
+    kill(pids[i], SIGSTOP);
     }
 }
 
+int child_alive(pid_t *processes, int numprograms) {
+	  int status;
+    int index = 0;
+    pid_t curr_child;
+
+    for (int i = 0; i < numprograms; i++) {
+        curr_child = waitpid(processes[i], &status, WNOHANG | WUNTRACED | WCONTINUED);
+        if (!WIFEXITED(status)) {
+            index++;
+          }
+    }
+    return index;
+}
+
 void top_func(int pid) {
-  //system("clear");
-  //system("clear");
-  char name[50];
+  printf("\n----------------------------\n");
+  char name[64];
   sprintf(name, "/proc/%d/stat", pid);
   printf("pid = %d\n", pid);
   FILE *file = fopen(name, "r");
 
   int unused;
-  char comm[1000];
+  char comm[64];
   char state;
   int ppid;
-  fscanf(file, "%d %s %c %d", &unused, comm, &state, &ppid);
-  printf("command = %s\n", comm);
-  printf("state = %c\n", state);
-  printf("parent pid = %d\n", ppid);
+  long int cstime;
+  long int num_threads;
+  fscanf(file, "%d %s %c %d %ld", &unused, comm, &state, &ppid, &cstime, &num_threads);
+  printf("comm: %s\n", comm);
+  printf("state: %c\n", state);
+  printf("ppid: %d\n", ppid);
+  printf("cstime: %ld\n", cstime);
+  printf("num_threads: %ld\n", num_threads);
+
   fclose(file);
 
 }
 
 int main(int argc, char *argv[]) {
 
+    // usage check
     if (argc != 2) {
         fprintf(stderr, "Error! Usage: %s <file>\n", argv[0]);
         exit(-1);
@@ -51,12 +67,14 @@ int main(int argc, char *argv[]) {
     char* programs[50];
     char line[50];
 
+    // error check
     input = freopen(argv[1], "r", stdin);
     if (input == NULL) {
         fprintf(stderr, "unable to open input file\n");
         exit(-1);
     }
 
+    // copy each line into an array & count number of lines
     else {
         while (fgets(line, sizeof line, input) != NULL) {
 
@@ -71,10 +89,11 @@ int main(int argc, char *argv[]) {
   //---------------------------------------------//
 
     pid_t pid[numprograms];
-    sigset_t signal;
-    sigemptyset(&signal);
-    sigaddset(&signal, SIGUSR1);
-    sigprocmask(SIG_BLOCK, &signal, NULL);
+
+    sigset_t sig_set;
+    sigemptyset(&sig_set);
+    sigaddset(&sig_set, SIGUSR1);
+    sigprocmask(SIG_BLOCK, &sig_set, NULL);
 
     char* arguments[50];
     char* saveptr;
@@ -90,8 +109,9 @@ int main(int argc, char *argv[]) {
         }
         arguments[j] = NULL;
 
-
         pid[i] = fork();
+        printf("\n\nget pid: %d\n\n", getpid());
+        top_func(getpid());
         if (pid[i] < 0) {
           fprintf(stderr, "fork error\n");
           exit(-1);
@@ -99,17 +119,21 @@ int main(int argc, char *argv[]) {
 
         if (pid[i] == 0) {
           int sig_flag = SIGUSR1;
-          int exec_test = sigwait(&signal, &sig_flag);
+          int exec_test = sigwait(&sig_set, &sig_flag);
           if (exec_test == 0) {
-            execvp(arguments[0], arguments);
+            printf("%d\n", getpid());
+            int exec;
+            exec = execvp(arguments[0], arguments);
+
+            if (exec == -1) {
+              exit(-1);
+            }
+
           }
           free(*arguments);
-
           fclose(input);
           exit(-1);
         }
-
-        memset(arguments, 0, sizeof(arguments));
         free(*arguments);
     }
 
@@ -117,14 +141,39 @@ int main(int argc, char *argv[]) {
     sleep(1);
     signaler(pid, SIGUSR1, numprograms);
     signaler(pid, SIGSTOP, numprograms);
-    signaler(pid, SIGCONT, numprograms);
 
+    sigset_t schedule;
+    sigemptyset(&schedule);
+    sigaddset(&schedule, SIGALRM);
+    sigprocmask(SIG_BLOCK, &schedule, NULL);
+    int status;
+    int pid_index = 0;
+    int children = numprograms;
 
-    for (int i = 0; i < numprograms; i++) {
-      int pid_num = getpid();
-      top_func(pid_num);
-      wait(&pid[i]);
+    while (child_alive(pid, numprograms) >  0) {
+      if (pid[pid_index] != -1) {
+        alarm(2);
+        kill(pid[pid_index], SIGCONT);
+        int sig_flag = SIGALRM;
+        sigaddset(&schedule, SIGALRM);
+        sigwait(&schedule, &sig_flag);
+        kill(pid[pid_index], SIGSTOP);
+        kill(pid[pid_index + 1], SIGCONT);
+        waitpid(pid[pid_index], &status, WNOHANG | WUNTRACED | WCONTINUED);
+        top_func(getpid());
+        if (!WIFEXITED(status)) {
+          pid[pid_index] == -1;
+        }
+      }
+      if (pid_index == numprograms) {
+        pid_index = 0;
+      }
+      pid_index++;
+      children = children - 1;
     }
+    waitpid(pid[pid_index], &status, WNOHANG | WUNTRACED | WCONTINUED);
+
+
 
     fclose(input);
     exit(0);
